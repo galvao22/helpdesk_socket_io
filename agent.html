@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Helpdesk - Agente</title>
+
+    <!-- Importa as bibliotecas necessárias -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Importa o arquivo CSS para estilização -->
+    <link rel="stylesheet" type="text/css" href="agent.css" media="screen" />
+
+</head>
+
+<body>
+    <!-- Seção contendo as listas de usuários -->
+    <section class="secao_listas hidden">
+
+        <div class="div_listas">
+            <h4>Usuários Disponíveis</h4>
+            <hr class="linha_divisoria">
+            <ul id="available-users"></ul>
+        </div>
+
+        <div class="div_listas">
+            <h4>Usuários em Atendimento</h4>
+            <hr class="linha_divisoria">
+            <ul id="active-users"></ul>
+        </div>
+
+        <div class="div_listas">
+            <h4>Usuários Atendidos</h4>
+            <hr class="linha_divisoria">
+            <ul id="attended-users"></ul>
+        </div>
+
+    </section>
+
+    <!-- Seção do formulário de login -->
+    <section id="secao_form">
+
+        <h1 id="title_login">Helpdesk - Painel do Agente</h1>
+
+        <!-- Formulário de login -->
+        <form id="form" action="">
+            <p>Insira seu nome para se conectar a uma conversa:</p>
+            <input id="agentname" placeholder="Seu nome" autocomplete="off" required />
+            <button id="login-btn">Entrar</button>
+        </form>
+
+        <!-- Contêiner do chat, inicialmente oculto -->
+        <div id="chat" style="display: none;">
+
+            <h2>Chat</h2>
+
+            <div id="dataHora"></div>
+
+            <div id="conversation"></div>
+
+            <!-- Formulário de envio de mensagens no chat -->
+            <form id="message-form" action="">
+                <input id="message" placeholder="Digite sua mensagem" autocomplete="off" required />
+                <button id="send-btn">Enviar</button>
+            </form>
+
+            <button id="disconnect-btn">Encerrar conversa</button>
+
+        </div>
+
+    </section>
+
+    <script>
+        $(function () {
+            // Inicializa o socket.io
+            var socket = io();
+            var selectedUser = '';
+            var agentName = '';
+
+            // Função para rolar a conversa até o fim
+            function scrollToBottom() {
+                var conversationDiv = document.getElementById('conversation');
+                conversationDiv.scrollTop = conversationDiv.scrollHeight;
+            }
+
+            // Evento de submissão do formulário de login
+            $('#form').submit(function (e) {
+                e.preventDefault();
+                agentName = 'Atendente ' + $('#agentname').val().trim();
+                if (agentName !== '') {
+                    socket.emit('agent login', agentName); // Envia o nome do agente ao servidor
+                    $('#agentname').prop('disabled', true);
+                    $('#login-btn').prop('disabled', true);
+                    $('.secao_listas').removeClass('hidden'); // Mostrar a seção de listas
+                }
+            });
+
+            // Atualiza a lista de usuários com base nos dados recebidos do servidor
+            socket.on('update users', function (users) {
+                $('#available-users').empty();
+                $('#active-users').empty();
+                $('#attended-users').empty();
+                users.forEach(function (user) {
+                    var $li = $('<li>').text(user.name);
+                    if (user.selected) {
+                        $li.addClass('selected');
+                    }
+                    if (user.inConversation) {
+                        $li.addClass('disabled');
+                        $('#active-users').append($li);
+                    } else if (user.attended) {
+                        $('#attended-users').append($li);
+                    } else {
+                        $('#available-users').append($li);
+                    }
+                });
+
+                if ($('#available-users li').hasClass('disabled')) {
+                    $('#available-users li').addClass('disabled');
+                }
+            });
+
+            // Seleciona um usuário disponível para iniciar a conversa
+            $('#available-users').on('click', 'li', function () {
+                if (!$(this).hasClass('disabled')) {
+                    selectedUser = $(this).text();
+                    $('#available-users li').removeClass('selected');
+                    $(this).addClass('selected');
+                    socket.emit('agent select conversation', selectedUser);
+                    $('#chat').show();
+                    $('#available-users').hide(); // Esconder lista de usuários disponíveis
+                }
+            });
+
+            /*No momento essa funçao sempre esta verificando um usuario com a classe disable
+            O que faz com que o codigo pare na verificação
+            // Seleciona um usuário em atendimento para continuar a conversa
+            $('#active-users').on('click', 'li', function () {
+                if (!$(this).hasClass('disabled')) {
+                    selectedUser = $(this).text();
+                    $('#active-users li').removeClass('selected');
+                    $(this).addClass('selected');
+                    socket.emit('agent select conversation', selectedUser);
+                    $('#chat').show();
+                }
+            });
+            */
+
+            // Função para gerar a data e hora formatadas
+            function geraData() {
+                var dataCompleta = new Date();
+
+                var dia = dataCompleta.getDay();
+                if (dia < 10) {
+                    dia = "0" + dia;
+                }
+
+                var mes = dataCompleta.getMonth() + 1;
+                if (mes < 10) {
+                    mes = "0" + mes;
+                }
+
+                var ano = dataCompleta.getFullYear();
+
+                var hora = dataCompleta.getHours();
+                var minuto = dataCompleta.getMinutes();
+                if (minuto < 10) {
+                    minuto = "0" + minuto;
+                }
+
+                return dia + "/" + mes + "/" + ano + " - " + hora + ":" + minuto;
+            }
+
+            // Evento de recebimento de mensagem do servidor
+            socket.on('message received', function (data) {
+                var dataGerada = geraData();
+                $('#conversation').append(
+                    $('<div>').addClass('message received-message').append(
+                        $('<div>').addClass('messageInternaEsquerda').append(
+                            $('<p>').addClass('dataHora alinhamentoEsq').text(dataGerada),
+                            $('<p>').text(data.user + ': ' + data.message)
+                        )
+                    )
+                );
+                scrollToBottom(); // Rola a conversa até o fim
+            });
+
+            // Evento de submissão do formulário de chat
+            $('#message-form').submit(function (e) {
+                e.preventDefault();
+                var dataGerada = geraData();
+                var message = $('#message').val().trim();
+                if (message !== '') {
+                    console.log("selectedUser : " + selectedUser)
+                    socket.emit('agent message', { user: selectedUser, message: message, agent: agentName });
+
+                    $('#conversation').append(
+                        $('<div>').addClass('message sent-message').append(
+                            $('<div>').addClass('messageInternaDireita').append(
+                                $('<p>').addClass('dataHora').text(dataGerada),
+                                $('<p>').text('Você: ' + message)
+                            )
+                        )
+                    );
+                    $('#message').val(''); // Limpa o campo de mensagem
+                    scrollToBottom(); // Rola a conversa até o fim
+                }
+            });
+
+            // Evento de clique no botão de desconectar
+            $('#disconnect-btn').click(function () {
+                socket.emit('agent disconnect', selectedUser); // Envia o evento de desconexão ao servidor
+                $('#chat').hide();
+                selectedUser = '';
+                $('#available-users').show(); // Mostrar lista de usuários disponíveis novamente
+            });
+
+            // Evento de seleção de conversa pelo agente
+            socket.on('agent conversation selected', function (user) {
+                $('#conversation').empty();
+                $('#available-users li').removeClass('selected').addClass('disabled');
+                $('#active-users li').removeClass('selected');
+                $('#active-users li:contains("' + user + '")').addClass('selected');
+            });
+
+            // Evento de encerramento de conversa pelo agente
+            socket.on('agent conversation ended', function (user) {
+                $('#available-users li').removeClass('disabled');
+            });
+
+            // Evento de usuário atendido
+            socket.on('user attended', function (user) {
+                $('#attended-users').append($('<li>').text(user));
+            });
+        });
+
+    </script>
+    
+</body>
+
+</html>

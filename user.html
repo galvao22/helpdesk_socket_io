@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Helpdesk - Usuário</title>
+
+    <!-- Importa as bibliotecas necessárias -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Importa o arquivo CSS para estilização -->
+    <link rel="stylesheet" type="text/css" href="user.css" media="screen" />
+
+</head>
+
+<body>
+    <!-- Seção do formulário de login -->
+    <section id="secao_form">
+
+        <h1 id="title_login">Helpdesk - Usuário</h1>
+
+        <!-- Formulário de login -->
+        <form id="form" action="">
+
+            <p>Insira seu nome para se conectar a uma conversa:</p>
+
+            <input id="username" placeholder="Seu nome" autocomplete="off" required />
+
+            <button id="login-btn">Entrar</button>
+
+        </form>
+
+        <!-- Contêiner do chat, inicialmente oculto -->
+        <div id="chat-container" style="display: none;">
+
+            <h2>Chat</h2>
+
+            <div id="status">Aguarde ser atendido...</div>
+
+            <div id="conversation"></div>
+
+            <!-- Formulário de envio de mensagens no chat -->
+            <form id="chat-form" action="">
+                <input id="message" placeholder="Digite sua mensagem" autocomplete="off" required disabled />
+                <button type="submit" disabled>Enviar</button>
+            </form>
+
+            <button id="disconnect-btn">Desconectar</button>
+
+        </div>
+
+    </section>
+
+    <script>
+
+        $(function () {
+            // Inicializa o socket.io
+            var socket = io();
+            var currentUser = '';
+
+            // Função para rolar a conversa até o fim
+            function scrollToBottom() {
+                var conversationDiv = document.getElementById('conversation');
+                conversationDiv.scrollTop = conversationDiv.scrollHeight;
+            }
+
+            // Evento de submissão do formulário de login
+            $('#form').submit(function (e) {
+                e.preventDefault();
+                currentUser = $('#username').val().trim();
+                if (currentUser !== '') {
+                    socket.emit('user login', currentUser); // Envia o nome de usuário ao servidor
+                    $('#username').prop('disabled', true); // Desabilita o campo de nome de usuário
+                    $('#login-btn').prop('disabled', true); // Desabilita o botão de login
+                    $('#chat-container').show(); // Mostra o contêiner do chat
+                }
+            });
+
+            // Evento de clique no botão de desconectar
+            $('#disconnect-btn').click(function () {
+                socket.emit('user disconnect'); // Envia o evento de desconexão ao servidor
+                $('#chat-container').hide(); // Esconde o contêiner do chat
+                currentUser = '';
+                $('#chat-form input, #chat-form button').prop('disabled', true); // Desabilita o formulário de chat
+            });
+
+            var agenteIdentificado = '';
+            // Evento de identificação do agente
+            socket.on('agent identified', function (agent) {
+                agenteIdentificado = agent;
+                $('#status').text('Você está sendo atendido por ' + agent);
+                $('#chat-form input, #chat-form button').prop('disabled', false); // Habilita o formulário de chat
+            });
+
+            // Função para gerar a data e hora formatadas para as mensagens
+            function geraData() {
+                var dataCompleta = new Date();
+
+                var dia = dataCompleta.getDay();
+                if (dia < 10) {
+                    dia = "0" + dia;
+                }
+
+                var mes = dataCompleta.getMonth() + 1;
+                if (mes < 10) {
+                    mes = "0" + mes;
+                }
+
+                var ano = dataCompleta.getFullYear();
+
+                var hora = dataCompleta.getHours();
+                var minuto = dataCompleta.getMinutes();
+                if (minuto < 10) {
+                    minuto = "0" + minuto;
+                }
+
+                return dia + "/" + mes + "/" + ano + " - " + hora + ":" + minuto;
+            }
+
+            // Evento de recebimento de mensagem do servidor
+            socket.on('message received', function (data) {
+                var dataGerada = geraData();
+                $('#conversation').append(
+                    $('<div>').addClass('message received-message').append(
+                        $('<div>').addClass('messageInternaEsquerda').append(
+                            $('<p>').addClass('dataHora alinhamentoEsq').text(dataGerada),
+                            $('<p>').text(agenteIdentificado + ': ' + data.message)
+                        )
+                    )
+                );
+                scrollToBottom(); // Rola a conversa até o fim
+            });
+
+            // Evento de submissão do formulário de chat
+            $('#chat-form').submit(function (e) {
+                e.preventDefault();
+                var dataGerada = geraData();
+                var message = $('#message').val().trim();
+                if (message !== '') {
+                    console.log("Currentuser : " + currentUser)
+                    socket.emit('user message', { user: currentUser, message: message }); // Envia a mensagem ao servidor
+                    $('#conversation').append(
+                        $('<div>').addClass('message sent-message').append(
+                            $('<div>').addClass('messageInternaDireita').append(
+                                $('<p>').addClass('dataHora').text(dataGerada),
+                                $('<p>').text('Você: ' + message)
+                            )
+                        )
+                    );
+                    $('#message').val(''); // Limpa o campo de mensagem
+                    scrollToBottom(); // Rola a conversa até o fim
+                }
+            });
+
+            // Evento de desconexão do usuário
+            socket.on('user disconnect', function () {
+                $('#status').text('O agente encerrou a conversa - Reconecte caso queira iniciar uma nova conversa!.');
+                $('#disconnect-btn').prop('disabled', true);
+                $('#chat-form input, #chat-form button').prop('disabled', true); // Desabilita o formulário de chat
+            });
+        });
+
+    </script>
+
+</body>
+
+</html>
