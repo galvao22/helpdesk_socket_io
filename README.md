@@ -196,7 +196,7 @@ $ git clone https://github.com/galvao22/helpdesk_socket_io.git
 $ npm install
 
 # Execute a aplicaçao
-$ yarn dev
+$ npm start
 ```
 
 # Imagens do projeto
