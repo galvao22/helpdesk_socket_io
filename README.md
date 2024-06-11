@@ -190,7 +190,7 @@
 # Como rodar este projeto
 ```bash
 # Clone este repositorio
-$ git clone https://github.com/galvao22/cardGame_trunfo_mobile.git
+$ git clone https://github.com/galvao22/helpdesk_socket_io.git
 
 # Instale as dependencias
 $ npm install
