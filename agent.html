@@ -53,6 +53,7 @@
         <div id="chat" style="display: none;">
 
             <h2>Chat</h2>
+            <div id="user_select"></div>
 
             <div id="dataHora"></div>
 
@@ -129,6 +130,10 @@
                     socket.emit('agent select conversation', selectedUser);
                     $('#chat').show();
                     $('#available-users').hide(); // Esconder lista de usuários disponíveis
+
+                    $('#user_select').append(
+                        $('<p>').text('Usuário selecionado: ' + selectedUser)
+                    )
                 }
             });
 
@@ -213,6 +218,7 @@
                 $('#chat').hide();
                 selectedUser = '';
                 $('#available-users').show(); // Mostrar lista de usuários disponíveis novamente
+                $('#user_select').empty();
             });
 
             // Evento de seleção de conversa pelo agente
@@ -235,7 +241,7 @@
         });
 
     </script>
-    
+
 </body>
 
 </html>

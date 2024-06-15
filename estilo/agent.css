@@ -213,3 +213,8 @@ p.dataHora{
     margin-left: 10px;
     margin-right: 10px;
 }
+
+#user_select{
+    color: #fff;
+    font-size: 1rem;
+}
