@@ -22,17 +22,17 @@ app.use(express.static('./estilo'));
 
 // Rota para a página do agente
 app.get('/agent', (req, res) => {
-    res.sendFile(path.join(__dirname, 'agent.html'));
+    res.sendFile(path.join(__dirname, './pages/agent.html'));
 });
 
 // Rota para a página do usuário
 app.get('/user', (req, res) => {
-    res.sendFile(path.join(__dirname, 'user.html'));
+    res.sendFile(path.join(__dirname, './pages/user.html'));
 });
 
 // Rota para a página inicial
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.send("Servidor sendo executado...")
 });
 
 // Evento de conexão do Socket.IO
