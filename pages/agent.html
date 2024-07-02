@@ -7,6 +7,7 @@
     <!-- Importa as bibliotecas necessárias -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
 
     <!-- Importa o arquivo CSS para estilização -->
     <link rel="stylesheet" type="text/css" href="agent.css" media="screen" />
@@ -66,6 +67,8 @@
             </form>
 
             <button id="disconnect-btn">Encerrar conversa</button>
+
+            <button id="savescript-btn">Salvar script</button>
 
         </div>
 
@@ -237,6 +240,21 @@
             // Evento de usuário atendido
             socket.on('user attended', function (user) {
                 $('#attended-users').append($('<li>').text(user));
+            });
+
+            // Função para gerar o PDF da conversa
+            $('#savescript-btn').click(function () {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                var dataGerada = geraData();
+
+                let conversation = $('#conversation').html();
+                conversation = conversation.replace(/<\/?div[^>]*>/g, ''); // Remove as tags <div> 
+                conversation = conversation.replace(/<\/?p[^>]*>/g, '\n'); // Substitui as tags <p> por quebras de linha
+
+                doc.text(conversation, 10, 10);
+                doc.save('conversa' + selectedUser + ' ' + dataGerada + '.pdf');
             });
         });
 

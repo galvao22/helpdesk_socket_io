@@ -37,7 +37,7 @@ app.get('/', (req, res) => {
 
 // Evento de conexão do Socket.IO
 io.on('connection', (socket) => {
-    console.log('New user connected - ' + socket.Object);
+    console.log('New user connected - ' + socket.id);
 
     // Evento de login do usuário
     socket.on('user login', (user) => {
@@ -76,12 +76,32 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
         if (connectedUsers[socket.id]) {
+            const userObj = connectedUsers[socket.id];
+            const agentSocketId = Object.keys(connectedAgents).find(id => connectedAgents[id] === activeConversations[userObj.name]);
+            if (agentSocketId) {
+                activeConversations[userObj.name] = null;
+                userObj.inConversation = false;
+                io.to(agentSocketId).emit('user disconnect', userObj.name);
+                io.emit('update active conversations', Object.keys(activeConversations));
+            }
             delete connectedUsers[socket.id];
             io.emit('update users', Object.values(connectedUsers));
         }
         if (connectedAgents[socket.id]) {
+            const agent = connectedAgents[socket.id];
+            Object.keys(activeConversations).forEach(user => {
+                if (activeConversations[user] === agent) {
+                    const userSocketId = Object.keys(connectedUsers).find(key => connectedUsers[key].name === user);
+                    if (userSocketId) {
+                        io.to(userSocketId).emit('user disconnect');
+                        connectedUsers[userSocketId].inConversation = false;
+                    }
+                    activeConversations[user] = null;
+                }
+            });
             delete connectedAgents[socket.id];
             io.emit('update agents', Object.values(connectedAgents));
+            io.emit('update active conversations', Object.keys(activeConversations));
         }
     });
 
@@ -116,13 +136,8 @@ io.on('connection', (socket) => {
         activeConversations[user] = null;
         const userObj = connectedUsers[Object.keys(connectedUsers).find(key => connectedUsers[key].name === user)];
         if (userObj) {
-            if (userObj.inConversation === undefined) {
-                userObj.inConversation = {};
-            } else {
-                userObj.inConversation = false;
-            }
+            userObj.inConversation = false;
         }
-
         io.emit('update active conversations', Object.keys(activeConversations));
         io.emit('update users', Object.values(connectedUsers));
     });
